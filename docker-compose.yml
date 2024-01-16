@@ -1,0 +1,9 @@
+services:
+    postgresql:
+        image: bitnami/postgresql:16.1.0
+        hostname: slope-repository-postgresql
+        environment:
+            POSTGRESQL_DATABASE: ${DATABASE_NAME}
+            POSTGRESQL_PASSWORD: ${DATABASE_PASSWORD}
+        ports:
+            - "${DATABASE_PORT}:5432"
