@@ -5,11 +5,10 @@ namespace SlopeIt\RepositoryDemo\Entity;
 
 use Assert\Assertion;
 use Doctrine\ORM\Mapping as ORM;
-use SlopeIt\RepositoryDemo\Repository\RentalRepository;
 use Symfony\Component\Uid\UuidV6;
 
 #[ORM\Table(name: 'rentals')]
-#[ORM\Entity(repositoryClass: RentalRepository::class)]
+#[ORM\Entity]
 class Rental
 {
     #[ORM\Id]

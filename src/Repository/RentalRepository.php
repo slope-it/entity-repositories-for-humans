@@ -3,35 +3,77 @@ declare(strict_types=1);
 
 namespace SlopeIt\RepositoryDemo\Repository;
 
-use Doctrine\ORM\EntityRepository;
-use SlopeIt\RepositoryDemo\Entity\Customer;
-use SlopeIt\RepositoryDemo\Entity\Movie;
+use Assert\Assertion;
+use Doctrine\ORM\QueryBuilder;
 use SlopeIt\RepositoryDemo\Entity\Rental;
+use SlopeIt\RepositoryDemo\Query\AbstractEntityQuery;
+use SlopeIt\RepositoryDemo\Query\RentalQuery;
 
-class RentalRepository extends EntityRepository
+/**
+ * @extends AbstractEntityRepository<Rental, RentalQuery>
+ */
+class RentalRepository extends AbstractEntityRepository
 {
-    public function countByCustomer(Customer $customer): int
+    public static function getEntityClassName(): string
     {
-        return $this->createQueryBuilder('e')
-            ->select('COUNT(e)')
-            ->andWhere('e.customer = :customer')->setParameter('customer', $customer)
-            ->getQuery()->getSingleScalarResult();
+        return Rental::class;
     }
 
-    public function findMadeAfterDateAndUnreturned(\DateTimeImmutable $afterDate): array
+    public static function getEntityQueryClassName(): string
     {
-        return $this->createQueryBuilder('e')
-            ->andWhere('e.rentDate > :rentDate')->setParameter('rentDate', $afterDate)
-            ->andWhere('e.returnDate IS NULL')
-            ->getQuery()->getResult();
+        return RentalQuery::class;
     }
 
-    public function findMostRecentOfMovie(Movie $movie): ?Rental
+    protected function configureBuilderFromEntityQuery(QueryBuilder $builder, AbstractEntityQuery $query): QueryBuilder
     {
-        return $this->createQueryBuilder('e')
-            ->andWhere('e.movie = :movie')->setParameter('movie', $movie)
-            ->orderBy('e.rentDate', 'DESC')
-            ->setMaxResults(1)
-            ->getQuery()->getResult()[0] ?: null;
+        /* Validation */
+
+        if ($query->rentDateLessThanOrEqualTo !== null) {
+            Assertion::lessThan(
+                $query->rentDateGreaterThan,
+                $query->rentDateLessThanOrEqualTo,
+                'rentDateGreaterThan cannot be greater than rentDateLessThanOrEqualTo.'
+            );
+        }
+
+        /* Filtering */
+
+        if ($query->movie !== null) {
+            $builder->andWhere('e.movie = :movie')->setParameter('movie', $query->movie);
+        }
+
+        if ($query->customer !== null) {
+            $builder->andWhere('e.customer = :customer')->setParameter('customer', $query->customer);
+        }
+
+        if ($query->rentDateLessThanOrEqualTo !== null) {
+            $builder->andWhere('e.rentDate <= :rentDateLessThanOrEqualTo')
+                ->setParameter('rentDateLessThanOrEqualTo', $query->rentDateLessThanOrEqualTo);
+        }
+
+        if ($query->rentDateGreaterThan !== null) {
+            $builder->andWhere('e.rentDate > :rentDateGreaterThan')
+                ->setParameter('rentDateGreaterThan', $query->rentDateGreaterThan);
+        }
+
+        if ($query->returned === true) {
+            $builder->andWhere('e.returnDate IS NOT NULL');
+        } elseif ($query->returned === false) {
+            $builder->andWhere('e.returnDate IS NULL');
+        }
+
+        /* Ordering */
+
+        foreach ($query->orderBy as $orderBy) {
+            switch ($orderBy) {
+                case RentalQuery::ORDER_BY_RENT_DATE_DESC:
+                    $builder->addOrderBy('e.rentDate', 'DESC');
+                    break;
+                default:
+                    throw new \Exception("Unknown order by: $orderBy");
+            }
+        }
+
+        return $builder;
     }
 }
