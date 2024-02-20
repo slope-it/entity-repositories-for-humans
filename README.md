@@ -3,7 +3,7 @@
 An example to demonstrate a simple (yet flexible) way of creating entity repositories.
 We use (a slightly more complicated version of) this pattern at [Slope](https://slope.it), in production code.
 
-Ref: <todo insert article url>
+This approach is described in detail here: https://dev.to/andreasprega/entity-repositories-for-humans-part-1-2mnf
 
 ## Requirements
 

@@ -1,14 +1,13 @@
 <?php
 declare(strict_types=1);
 
-use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\EntityManager;
-use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use SlopeIt\RepositoryDemo\Entity\Movie;
 use SlopeIt\RepositoryDemo\Entity\Customer;
 use SlopeIt\RepositoryDemo\Entity\Rental;
+use SlopeIt\RepositoryDemo\Query\RentalQuery;
 use SlopeIt\RepositoryDemo\Repository\RentalRepository;
 
 class RentalRepositoryTest extends TestCase
@@ -24,13 +23,7 @@ class RentalRepositoryTest extends TestCase
 
     public function setUp(): void
     {
-        $classMetadataFactory = new ClassMetadataFactory();
-        $classMetadataFactory->setEntityManager(self::$entityManager);
-
-        $this->SUT = new RentalRepository(
-            self::$entityManager,
-            $classMetadataFactory->getMetadataFor(Rental::class)
-        );
+        $this->SUT = new RentalRepository(self::$entityManager);
     }
 
     public function tearDown(): void
@@ -70,7 +63,11 @@ class RentalRepositoryTest extends TestCase
         );
 
         // Action
-        $resultCount = $this->SUT->countByCustomer($mario);
+        $resultCount = $this->SUT->executeForCount(
+            new RentalQuery(
+                customer: $mario,
+            )
+        );
 
         // Verification: Mario rented both Dune and Harry Potter
         $this->assertSame(2, $resultCount);
@@ -95,7 +92,12 @@ class RentalRepositoryTest extends TestCase
         $this->persistFixtures($luigiRental, $marioRental2);
 
         // Action
-        $results = $this->SUT->findMadeAfterDateAndUnreturned(new \DateTimeImmutable('8 days ago'));
+        $results = $this->SUT->executeForManyResults(
+            new RentalQuery(
+                rentDateGreaterThan: new \DateTimeImmutable('8 days ago'),
+                returned: false,
+            )
+        );
 
         // Verifications: even though Mario rented 2 movies, one was returned.
         $this->assertCount(1, $results);
@@ -118,7 +120,12 @@ class RentalRepositoryTest extends TestCase
         );
 
         // Action
-        $result = $this->SUT->findMostRecentOfMovie($pulpFiction);
+        $result = $this->SUT->executeForFirstOrNullResult(
+            new RentalQuery(
+                movie: $pulpFiction,
+                orderBy: [RentalQuery::ORDER_BY_RENT_DATE_DESC]
+            )
+        );
 
         // Verification
         $this->assertSame($luigiRental, $result);
