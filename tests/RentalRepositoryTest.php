@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use PHPUnit\Framework\Attributes\Test;
@@ -69,7 +70,10 @@ class RentalRepositoryTest extends TestCase
         );
 
         // Action
-        $resultCount = $this->SUT->countByCustomer($mario);
+        $expr = Criteria::expr();
+        $resultCount = $this->SUT->matching(
+            Criteria::create()->where($expr->eq('customer', $mario))
+        )->count();
 
         // Verification: Mario rented both Dune and Harry Potter
         $this->assertSame(2, $resultCount);
@@ -78,7 +82,31 @@ class RentalRepositoryTest extends TestCase
     #[Test]
     public function it_finds_rentals_made_after_a_certain_date_and_not_yet_returned()
     {
-        $this->markTestIncomplete('This is not possible with just magic methods because it combines two properties.');
+        // Preconditions
+        $this->persistFixtures(
+            $forrestGump = new Movie('Forrest Gump'),
+            $starWars = new Movie('Star Wars'),
+            $mario = new Customer('Mario', 'Mario'),
+            $luigi = new Customer('Luigi', 'Mario'),
+            $marioRental1 = new Rental($forrestGump, $mario, new \DateTimeImmutable('7 days ago')),
+            $marioRental2 = new Rental($starWars, $mario, new \DateTimeImmutable('7 days ago')),
+            $luigiRental = new Rental($starWars, $luigi, new \DateTimeImmutable('7 days ago'))
+        );
+
+        $luigiRental->return(new \DateTimeImmutable());
+        $marioRental2->return(new \DateTimeImmutable());
+        $this->persistFixtures($luigiRental, $marioRental2);
+
+        // Action
+        $expr = Criteria::expr();
+        $results = $this->SUT->matching(
+            Criteria::create()->where($expr->gt('rentDate', new \DateTimeImmutable('8 days ago')))
+               ->andWhere($expr->isNull('returnDate'))
+        );
+
+        // Verifications: even though Mario rented 2 movies, one was returned.
+        $this->assertCount(1, $results);
+        $this->assertContains($marioRental1, $results);
     }
 
     #[Test]
@@ -97,7 +125,12 @@ class RentalRepositoryTest extends TestCase
         );
 
         // Action
-        $result = $this->SUT->findOneByMovie($pulpFiction, ['rentDate' => 'DESC']);
+        $expr = Criteria::expr();
+        $result = $this->SUT->matching(
+            Criteria::create()
+                ->where($expr->eq('movie', $pulpFiction))
+                ->orderBy(['rentDate' => 'DESC'])
+        )->offsetGet(0);
 
         // Verification
         $this->assertSame($luigiRental, $result);
