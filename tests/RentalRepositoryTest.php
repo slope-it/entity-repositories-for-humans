@@ -70,10 +70,7 @@ class RentalRepositoryTest extends TestCase
         );
 
         // Action
-        $expr = Criteria::expr();
-        $resultCount = $this->SUT->matching(
-            Criteria::create()->where($expr->eq('customer', $mario))
-        )->count();
+        $resultCount = $this->SUT->countByCustomer($mario);
 
         // Verification: Mario rented both Dune and Harry Potter
         $this->assertSame(2, $resultCount);
@@ -98,11 +95,7 @@ class RentalRepositoryTest extends TestCase
         $this->persistFixtures($luigiRental, $marioRental2);
 
         // Action
-        $expr = Criteria::expr();
-        $results = $this->SUT->matching(
-            Criteria::create()->where($expr->gt('rentDate', new \DateTimeImmutable('8 days ago')))
-               ->andWhere($expr->isNull('returnDate'))
-        );
+        $results = $this->SUT->findMadeAfterDateAndUnreturned(new \DateTimeImmutable('8 days ago'));
 
         // Verifications: even though Mario rented 2 movies, one was returned.
         $this->assertCount(1, $results);
@@ -125,12 +118,7 @@ class RentalRepositoryTest extends TestCase
         );
 
         // Action
-        $expr = Criteria::expr();
-        $result = $this->SUT->matching(
-            Criteria::create()
-                ->where($expr->eq('movie', $pulpFiction))
-                ->orderBy(['rentDate' => 'DESC'])
-        )->offsetGet(0);
+        $result = $this->SUT->findMostRecentOfMovie($pulpFiction);
 
         // Verification
         $this->assertSame($luigiRental, $result);
